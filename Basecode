@@ -1,0 +1,364 @@
+function FINALPROJECT
+    % Create the main figure
+    mainFig = figure('Name', 'Time Variance Test GUI', 'Position', [100, 100, 900, 500]);
+
+    % Create an edit box for user input expression
+    expressionEdit = uicontrol('Style', 'edit', 'Units', 'normalized', 'Position', [0.1, 0.80, 0.40, 0.05], 'String', 'Enter Expression (e.g sin(x))');
+
+    % Create a button group for signal type selection
+    signalTypeGroup = uibuttongroup('Units', 'normalized', 'Position', [0.55, 0.80, 0.35, 0.05]);
+
+    % Create radio buttons for signal type
+    continuousButton = uicontrol(signalTypeGroup, 'Style', 'radiobutton', 'String', 'Continuous', ...
+        'Units', 'normalized', 'Position', [0.1, 0.48, 0.8, 0.6], 'Callback', @updateSliderVisibility);
+
+    discreteButton = uicontrol(signalTypeGroup, 'Style', 'radiobutton', 'String', 'Discrete', ...
+        'Units', 'normalized', 'Position', [0.6, 0.48, 0.8, 0.6], 'Callback', @updateSliderVisibility);
+
+    % Create a slider for input signal (amplitude)
+    inputSlider = uicontrol('Style', 'slider', 'Min', 0, 'Max', 1, 'Value', 0.5, ...
+        'Units', 'normalized', 'Position', [0.08, 0.65, 0.4, 0.05], 'Callback', @updatePlot);
+
+    % Create a slider for time shift
+    timeShiftSlider = uicontrol('Style', 'slider', 'Min', -10, 'Max', 10, 'Value', 0, ...
+        'Units', 'normalized', 'Position', [0.55, 0.65, 0.4, 0.05], 'Callback', @updatePlot, 'Visible', 'on');
+
+    % Create an edit box for entering discrete sequences
+    sequenceEdit = uicontrol('Style', 'edit', 'Units', 'normalized', 'Position', [0.32, 0.72, 0.4, 0.05], 'String', 'Enter Sequence (Space Separated', 'Visible', 'off');
+
+    % Create labels for sliders
+    uicontrol('Style', 'text', 'String', 'Amplitude', 'Units', 'normalized', 'Position', [0.22, 0.58, 0.1, 0.05]);
+    uicontrol('Style', 'text', 'String', 'Time Shift', 'Units', 'normalized', 'Position', [0.73, 0.58, 0.1, 0.05]);
+
+    % Create labels for user input information
+    dispLabel = uicontrol('Style', 'text', 'String', '', ...
+        'Units', 'normalized', 'Position', [0.75, 0.2, 0.25, 0.15]);
+
+    % Create labels for program title
+    PrgmTitle = uicontrol('Style', 'text', 'String', 'Time - Variance Test', ...
+        'Units', 'normalized', 'Position', [0.40, 0.9, 0.25, 0.05]);
+
+    % Create axes for input signal
+    inputAxes = axes('Parent', mainFig, 'Position', [0.1, 0.33, 0.6, 0.2]);
+    title(inputAxes, 'Input Signal');
+
+    % Create axes for output signals
+    outputAxes2 = axes('Parent', mainFig, 'Position', [0.1, 0.06, 0.6, 0.2]);
+    title(outputAxes2, 'Signal after Shift');
+
+    outputAxes3 = axes('Parent', mainFig, 'Position', [0.35, 0.06, 0.2, 0.2]);
+    title(outputAxes3, 'LHS');
+
+    outputAxes4 = axes('Parent', mainFig, 'Position', [0.60, 0.06, 0.2, 0.2]);
+    title(outputAxes4, 'RHS');
+
+    % Create a button to show the result
+    testButton = uicontrol('Style', 'pushbutton', 'String', 'Test', ...
+        'Units', 'normalized', 'Position', [0.83, 0.06, 0.1, 0.07], 'Callback', @performTest);
+
+    % Function to perform the test and update the output plot
+    function performTest(~, ~)
+        % Clear the axes before updating the plots
+        cla(inputAxes);
+        cla(outputAxes2);
+        cla(outputAxes3);
+        cla(outputAxes4);
+        % Clear previous annotations
+        delete(findall(mainFig,'type','annotation'));
+
+        % Get the amplitude slider value
+        amplitudeValue = inputSlider.Value;
+
+        % Get the time shift slider value
+        timeShiftValue = timeShiftSlider.Value;
+
+        % Get the selected signal type
+        if continuousButton.Value
+            signalType = 'Continuous';
+        elseif discreteButton.Value
+            signalType = 'Discrete';
+        end
+
+        % Get the user input expression
+        userExpression = get(expressionEdit, 'String');
+
+        % Generate a new input signal based on the user input expression and slider values
+        if strcmp(signalType, 'Discrete')
+            % For discrete signals, read the sequence from the edit box
+            sequenceString = get(sequenceEdit, 'String');
+            inputSignal = str2num(sequenceString) * amplitudeValue;
+            x = 1:length(inputSignal);  % Use integers as time values for discrete signals
+        else
+            % For continuous signals, use the original linspace
+            x = linspace(0, 1, 1000);  % Increase the number of points for smoother plots
+            inputSignal = eval(userExpression) * amplitudeValue;
+            
+        end
+
+        % Perform the time variance test
+        if strcmp(signalType, 'Discrete')
+            % Update the input signal plot
+            stem(inputAxes, x, inputSignal);
+            title(inputAxes, 'Input Signal');
+
+            x1 = inputSignal;  % Assuming the inputSignal is a discrete signal
+            n0 = round(timeShiftValue);
+            x2 = x - timeShiftValue;
+            y1 = x1;
+            y2 = interp1(x, [zeros(1, n0), x1], x2, 'linear', 0);
+            y3 = [zeros(1, n0), y1];
+
+            % Update the output signal plots
+            stem(outputAxes2, x2, y2);
+            title(outputAxes2, 'Signal after Shift');
+            stem(outputAxes3, x, y2);
+            title(outputAxes3, 'LHS');
+            stem(outputAxes4, x, y3);
+            title(outputAxes4, 'RHS');
+
+            % Update user input information text
+            dispLabelString = sprintf('%s\n%s\n%s\n%s', ...
+                ['User Input Expression: ' userExpression], ...
+                ['Signal Type: ' signalType], ...
+                ['Amplitude: ' num2str(amplitudeValue)], ...
+                ['Time Shift: ' num2str(timeShiftValue)]);
+            set(dispLabel, 'String', dispLabelString);
+
+            % Display whether the system is time-variant or time-invariant
+            timeVarianceText = '';
+            if isequal(y2, y3)
+                timeVarianceText = 'The system is time-invariant.';
+            else
+                timeVarianceText = 'The system is time-variant.';
+            end
+
+            % Display the time variance information
+            disp(timeVarianceText);
+            annotation(mainFig, 'textbox', [0.75, 0.1, 0.8, 0.1], 'String', timeVarianceText, 'FitBoxToText', 'on');
+
+        else % Continuous case
+            % Use the input signal directly for continuous case
+
+            % Update the input signal plot
+            plot(inputAxes, x, inputSignal);
+            title(inputAxes, 'Input Signal');
+            y1 = inputSignal;
+
+            % Interpolate the input signal for shifted time
+            x2 = x + timeShiftValue;
+            y2 = interp1(x, inputSignal, x, 'nearest', 0);
+      
+
+            % Update the output signal plots
+            plot(outputAxes2, x2, y2);
+            title(outputAxes2, 'Signal after Shift')
+        set(outputAxes3, 'Visible', 'off');
+                set(outputAxes4, 'Visible', 'off');
+            
+
+            % Update user input information text
+            dispLabelString = sprintf('%s\n%s\n%s\n%s', ...
+                ['User Input Expression: ' userExpression], ...
+                ['Signal Type: ' signalType], ...
+                ['Amplitude: ' num2str(amplitudeValue)], ...
+                ['Time Shift: ' num2str(timeShiftValue)]);
+            set(dispLabel, 'String', dispLabelString);
+
+            % Display whether the system is time-variant or time-invariant
+            timeVarianceText = '';
+            if isequal(y2, y1)
+                timeVarianceText = 'The system is time-invariant.';
+            else
+                timeVarianceText = 'The system is time-variant.';
+            end
+
+            % Display the time variance information
+            disp(timeVarianceText);
+            annotation(mainFig, 'textbox', [0.75, 0.1, 0.8, 0.1], 'String', timeVarianceText, 'FitBoxToText', 'on');
+
+        end
+    end
+end
+
+function FINALPROJECT
+    % Create the main figure
+    mainFig = figure('Name', 'Time Variance Test GUI', 'Position', [100, 100, 900, 500]);
+
+    % Create an edit box for user input expression
+    expressionEdit = uicontrol('Style', 'edit', 'Units', 'normalized', 'Position', [0.1, 0.80, 0.40, 0.05], 'String', 'Enter Expression (e.g sin(x))');
+
+    % Create a button group for signal type selection
+    signalTypeGroup = uibuttongroup('Units', 'normalized', 'Position', [0.55, 0.80, 0.35, 0.05]);
+
+    % Create radio buttons for signal type
+    continuousButton = uicontrol(signalTypeGroup, 'Style', 'radiobutton', 'String', 'Continuous', ...
+        'Units', 'normalized', 'Position', [0.1, 0.48, 0.8, 0.6], 'Callback', @updateSliderVisibility);
+
+    discreteButton = uicontrol(signalTypeGroup, 'Style', 'radiobutton', 'String', 'Discrete', ...
+        'Units', 'normalized', 'Position', [0.6, 0.48, 0.8, 0.6], 'Callback', @updateSliderVisibility);
+
+    % Create a slider for input signal (amplitude)
+    inputSlider = uicontrol('Style', 'slider', 'Min', 0, 'Max', 1, 'Value', 0.5, ...
+        'Units', 'normalized', 'Position', [0.08, 0.65, 0.4, 0.05], 'Callback', @updatePlot);
+
+    % Create a slider for time shift
+    timeShiftSlider = uicontrol('Style', 'slider', 'Min', -10, 'Max', 10, 'Value', 0, ...
+        'Units', 'normalized', 'Position', [0.55, 0.65, 0.4, 0.05], 'Callback', @updatePlot, 'Visible', 'on');
+
+    % Create an edit box for entering discrete sequences
+    sequenceEdit = uicontrol('Style', 'edit', 'Units', 'normalized', 'Position', [0.32, 0.72, 0.4, 0.05], 'String', 'Enter Sequence (Space Separated', 'Visible', 'off');
+
+    % Create labels for sliders
+    uicontrol('Style', 'text', 'String', 'Amplitude', 'Units', 'normalized', 'Position', [0.22, 0.58, 0.1, 0.05]);
+    uicontrol('Style', 'text', 'String', 'Time Shift', 'Units', 'normalized', 'Position', [0.73, 0.58, 0.1, 0.05]);
+
+    % Create labels for user input information
+    dispLabel = uicontrol('Style', 'text', 'String', '', ...
+        'Units', 'normalized', 'Position', [0.75, 0.2, 0.25, 0.15]);
+
+    % Create labels for program title
+    PrgmTitle = uicontrol('Style', 'text', 'String', 'Time - Variance Test', ...
+        'Units', 'normalized', 'Position', [0.40, 0.9, 0.25, 0.05]);
+
+    % Create axes for input signal
+    inputAxes = axes('Parent', mainFig, 'Position', [0.1, 0.33, 0.6, 0.2]);
+    title(inputAxes, 'Input Signal');
+
+    % Create axes for output signals
+    outputAxes2 = axes('Parent', mainFig, 'Position', [0.1, 0.06, 0.6, 0.2]);
+    title(outputAxes2, 'Signal after Shift');
+
+    outputAxes3 = axes('Parent', mainFig, 'Position', [0.35, 0.06, 0.2, 0.2]);
+    title(outputAxes3, 'LHS');
+
+    outputAxes4 = axes('Parent', mainFig, 'Position', [0.60, 0.06, 0.2, 0.2]);
+    title(outputAxes4, 'RHS');
+
+    % Create a button to show the result
+    testButton = uicontrol('Style', 'pushbutton', 'String', 'Test', ...
+        'Units', 'normalized', 'Position', [0.83, 0.06, 0.1, 0.07], 'Callback', @performTest);
+
+    % Function to perform the test and update the output plot
+    function performTest(~, ~)
+        % Clear the axes before updating the plots
+        cla(inputAxes);
+        cla(outputAxes2);
+        cla(outputAxes3);
+        cla(outputAxes4);
+        % Clear previous annotations
+        delete(findall(mainFig,'type','annotation'));
+
+        % Get the amplitude slider value
+        amplitudeValue = inputSlider.Value;
+
+        % Get the time shift slider value
+        timeShiftValue = timeShiftSlider.Value;
+
+        % Get the selected signal type
+        if continuousButton.Value
+            signalType = 'Continuous';
+        elseif discreteButton.Value
+            signalType = 'Discrete';
+        end
+
+        % Get the user input expression
+        userExpression = get(expressionEdit, 'String');
+
+        % Generate a new input signal based on the user input expression and slider values
+        if strcmp(signalType, 'Discrete')
+            % For discrete signals, read the sequence from the edit box
+            sequenceString = get(sequenceEdit, 'String');
+            inputSignal = str2num(sequenceString) * amplitudeValue;
+            x = 1:length(inputSignal);  % Use integers as time values for discrete signals
+        else
+            % For continuous signals, use the original linspace
+            x = linspace(0, 1, 1000);  % Increase the number of points for smoother plots
+            inputSignal = eval(userExpression) * amplitudeValue;
+            
+        end
+
+        % Perform the time variance test
+        if strcmp(signalType, 'Discrete')
+            % Update the input signal plot
+            stem(inputAxes, x, inputSignal);
+            title(inputAxes, 'Input Signal');
+
+            x1 = inputSignal;  % Assuming the inputSignal is a discrete signal
+            n0 = round(timeShiftValue);
+            x2 = x - timeShiftValue;
+            y1 = x1;
+            y2 = interp1(x, [zeros(1, n0), x1], x2, 'linear', 0);
+            y3 = [zeros(1, n0), y1];
+
+            % Update the output signal plots
+            stem(outputAxes2, x2, y2);
+            title(outputAxes2, 'Signal after Shift');
+            stem(outputAxes3, x, y2);
+            title(outputAxes3, 'LHS');
+            stem(outputAxes4, x, y3);
+            title(outputAxes4, 'RHS');
+
+            % Update user input information text
+            dispLabelString = sprintf('%s\n%s\n%s\n%s', ...
+                ['User Input Expression: ' userExpression], ...
+                ['Signal Type: ' signalType], ...
+                ['Amplitude: ' num2str(amplitudeValue)], ...
+                ['Time Shift: ' num2str(timeShiftValue)]);
+            set(dispLabel, 'String', dispLabelString);
+
+            % Display whether the system is time-variant or time-invariant
+            timeVarianceText = '';
+            if isequal(y2, y3)
+                timeVarianceText = 'The system is time-invariant.';
+            else
+                timeVarianceText = 'The system is time-variant.';
+            end
+
+            % Display the time variance information
+            disp(timeVarianceText);
+            annotation(mainFig, 'textbox', [0.75, 0.1, 0.8, 0.1], 'String', timeVarianceText, 'FitBoxToText', 'on');
+
+        else % Continuous case
+            % Use the input signal directly for continuous case
+
+            % Update the input signal plot
+            plot(inputAxes, x, inputSignal);
+            title(inputAxes, 'Input Signal');
+            y1 = inputSignal;
+
+            % Interpolate the input signal for shifted time
+            x2 = x + timeShiftValue;
+            y2 = interp1(x, inputSignal, x, 'nearest', 0);
+      
+
+            % Update the output signal plots
+            plot(outputAxes2, x2, y2);
+            title(outputAxes2, 'Signal after Shift')
+        set(outputAxes3, 'Visible', 'off');
+                set(outputAxes4, 'Visible', 'off');
+            
+
+            % Update user input information text
+            dispLabelString = sprintf('%s\n%s\n%s\n%s', ...
+                ['User Input Expression: ' userExpression], ...
+                ['Signal Type: ' signalType], ...
+                ['Amplitude: ' num2str(amplitudeValue)], ...
+                ['Time Shift: ' num2str(timeShiftValue)]);
+            set(dispLabel, 'String', dispLabelString);
+
+            % Display whether the system is time-variant or time-invariant
+            timeVarianceText = '';
+            if isequal(y2, y1)
+                timeVarianceText = 'The system is time-invariant.';
+            else
+                timeVarianceText = 'The system is time-variant.';
+            end
+
+            % Display the time variance information
+            disp(timeVarianceText);
+            annotation(mainFig, 'textbox', [0.75, 0.1, 0.8, 0.1], 'String', timeVarianceText, 'FitBoxToText', 'on');
+
+        end
+    end
+end
+
